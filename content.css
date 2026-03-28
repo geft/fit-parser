@@ -1,0 +1,130 @@
+/* ============================================
+   Garmin FIT → CSV Exporter — Content Styles
+   ============================================ */
+
+/* ---- Floating Action Button ---- */
+#garmin-fit-exporter-btn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999999;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+
+  /* Dark glass style */
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e0e0ff;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+#garmin-fit-exporter-btn:hover {
+  background: linear-gradient(135deg, #0f3460 0%, #1a1a6e 100%);
+  box-shadow:
+    0 8px 32px rgba(15, 52, 96, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+#garmin-fit-exporter-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+/* ---- Loading state ---- */
+#garmin-fit-exporter-btn.gfe-loading {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+#garmin-fit-exporter-btn.gfe-loading .gfe-icon {
+  animation: gfe-spin 1s linear infinite;
+}
+
+@keyframes gfe-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ---- Icon ---- */
+.gfe-icon {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.25s ease;
+}
+
+/* ---- Label ---- */
+.gfe-label {
+  white-space: nowrap;
+}
+
+/* ---- Toast Container ---- */
+#gfe-toast-container {
+  position: fixed;
+  bottom: 90px;
+  right: 28px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* ---- Toast ---- */
+.gfe-toast {
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  max-width: 380px;
+  pointer-events: auto;
+
+  /* Animate */
+  opacity: 0;
+  transform: translateX(40px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gfe-toast-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.gfe-toast-success {
+  background: linear-gradient(135deg, #0d3320 0%, #1a4a30 100%);
+  color: #a3f7bf;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(163, 247, 191, 0.15) inset;
+}
+
+.gfe-toast-error {
+  background: linear-gradient(135deg, #3d0a0a 0%, #4a1a1a 100%);
+  color: #ff9494;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 148, 148, 0.15) inset;
+}
+
+.gfe-toast-info {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #a3c4f7;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(163, 196, 247, 0.15) inset;
+}

@@ -1,67 +1,30 @@
 /**
  * Garmin FIT → CSV Exporter — Background Service Worker
  * 
- * Orchestrates: fetch latest run → download FIT → parse → CSV → download
+ * Orchestrates: parse → CSV → download
  */
 
 // Import libraries
 importScripts('lib/unzip.js', 'lib/fit-parser.js');
 
-const GARMIN_BASE = 'https://connect.garmin.com';
-
-// Activity types that count as "running"
-const RUNNING_TYPES = ['running', 'trail_running', 'treadmill_running', 'track_running'];
-
-/**
- * Fetch the latest running activity metadata from Garmin Connect.
- */
-async function fetchLatestRun() {
-  // The activitylist-service supports activityType filter
-  const url = `${GARMIN_BASE}/modern/proxy/activitylist-service/activities/search/activities?` +
-    new URLSearchParams({
-      activityType: 'running',
-      limit: '5',
-      start: '0',
-    });
-
-  const resp = await fetch(url, { credentials: 'include' });
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch activities (HTTP ${resp.status}). Are you logged in to Garmin Connect?`);
+function base64ToBuffer(base64) {
+  const binary_string = atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
   }
-
-  const activities = await resp.json();
-  if (!activities || activities.length === 0) {
-    throw new Error('No running activities found on your Garmin Connect account.');
-  }
-
-  // Find the first activity that matches our running types
-  const run = activities.find(a => {
-    const type = (a.activityType?.typeKey || '').toLowerCase();
-    return RUNNING_TYPES.includes(type);
-  }) || activities[0];
-
-  return run;
+  return bytes.buffer;
 }
 
 /**
- * Download the original FIT file for a given activity.
- * @param {number} activityId
- * @returns {ArrayBuffer} - The raw FIT file bytes
+ * Extract or return the FIT file buffer
  */
-async function downloadFitFile(activityId) {
-  const url = `${GARMIN_BASE}/modern/proxy/download-service/files/activity/${activityId}`;
-  const resp = await fetch(url, { credentials: 'include' });
-  if (!resp.ok) {
-    throw new Error(`Failed to download FIT file (HTTP ${resp.status}).`);
-  }
-
-  const buffer = await resp.arrayBuffer();
-
-  // The response is a ZIP file — extract the .fit from it
+function extractFitBuffer(buffer) {
   try {
     return ZIP.extractFitFromZip(buffer);
   } catch (e) {
-    // Maybe it's already a raw FIT file (some endpoints return raw)
+    // Maybe it's already a raw FIT file
     const header = new Uint8Array(buffer);
     if (header.length > 12) {
       const sig = String.fromCharCode(header[8], header[9], header[10], header[11]);
@@ -156,40 +119,64 @@ function toCSV(records, session, activityMeta) {
 }
 
 /**
- * Format a date string for filename use.
+ * Get MMDD format for a date string.
  */
-function formatDateForFilename(dateStr) {
+function getMMDD(dateStr) {
   try {
     const d = new Date(dateStr);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}${dd}`;
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}${dd}`;
   }
+}
+
+/**
+ * Determine the workout type from activity name.
+ */
+function determineWorkoutType(activityName) {
+  if (!activityName) return 'unknown';
+  const name = activityName.toLowerCase();
+  if (name.includes('hill')) return 'hill';
+  if (name.includes('threshold')) return 'threshold';
+  if (name.includes('medium')) return 'medium';
+  if (name.includes('long')) return 'long';
+  return 'unknown';
 }
 
 /**
  * Main export flow.
  */
-async function exportLatestRun() {
-  // Step 1: Fetch latest run metadata
-  const activity = await fetchLatestRun();
-  const activityId = activity.activityId;
+async function parseAndExportRun(activity, fitDataBase64) {
+  console.log('[GFE] Step 1: Decoding base64...', fitDataBase64.length, 'chars');
+  // Step 1: Decode base64 to ArrayBuffer
+  const rawBuffer = base64ToBuffer(fitDataBase64);
+  console.log('[GFE] Step 2: Extracting FIT from ZIP...', rawBuffer.byteLength, 'bytes');
 
-  // Step 2: Download the FIT file
-  const fitBuffer = await downloadFitFile(activityId);
+  // Step 2: Extract FIT file from ZIP
+  const fitBuffer = extractFitBuffer(rawBuffer);
+  console.log('[GFE] Step 3: Parsing FIT file...', fitBuffer.byteLength, 'bytes');
 
   // Step 3: Parse FIT → records + session
   const { records, session } = FIT.parse(fitBuffer);
+  console.log('[GFE] Step 4: Building CSV...', records.length, 'records');
 
   // Step 4: Convert to CSV
   const csv = toCSV(records, session, activity);
+  console.log('[GFE] Step 5: Creating download...');
 
   // Step 5: Create download
-  const dateStr = formatDateForFilename(activity.startTimeLocal || activity.startTimeGMT);
-  const filename = `garmin_run_${dateStr}.csv`;
+  const mmdd = getMMDD(activity.startTimeLocal || activity.startTimeGMT);
+  const workoutType = determineWorkoutType(activity.activityName);
+  const filename = `${mmdd} ${workoutType}.csv`;
 
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
+  // Use base64 data URI for download to avoid Blob URL cross-origin issues in Chrome MV3
+  const csvBase64 = btoa(unescape(encodeURIComponent(csv)));
+  const url = `data:text/csv;base64,${csvBase64}`;
 
   const downloadId = await chrome.downloads.download({
     url: url,
@@ -201,18 +188,19 @@ async function exportLatestRun() {
     success: true,
     filename,
     activityName: activity.activityName || 'Run',
-    activityId,
+    activityId: activity.activityId,
     recordCount: records.length,
-    date: dateStr,
+    date: mmdd,
   };
 }
 
 // ---- Message Listener ----
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'exportLatestRun') {
-    exportLatestRun()
+  if (message.action === 'parseAndExportRun') {
+    parseAndExportRun(message.activity, message.fitDataBase64)
       .then(result => sendResponse(result))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true; // Keep channel open for async response
   }
 });
+

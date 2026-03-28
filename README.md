@@ -34,9 +34,21 @@ timestamp,heart_rate,cadence,speed,distance,altitude,position_lat,position_long,
 ## Tech
 
 - Chrome Extension Manifest V3
-- Custom FIT protocol parser (no npm)
-- Custom Deflate/ZIP extractor (no npm)
-- Uses Garmin Connect's internal proxy endpoints (requires active session)
+- Custom FIT protocol parser (zero-dependency)
+- Native `DecompressionStream` ZIP extractor
+- Resilient bit-3 Data Descriptor recovery
+
+## Testing
+
+The project includes a mathematically-proven test suite. To run them (requires Node.js):
+
+```bash
+# Test math formulas, epochs, and bitwise invalid sentinels
+node test_math.js
+
+# Test full binary integration (mocks a real .fit file structure)
+node test_integration.js
+```
 
 ## License
 

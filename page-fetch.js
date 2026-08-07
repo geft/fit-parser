@@ -703,12 +703,15 @@ function toCSV(records, session, activityMeta) {
   lines.push('# Generated: ' + new Date().toISOString());
   lines.push('#');
 
-  if (activityMeta) {
-    if (activityMeta.activityName) lines.push('# Activity: ' + activityMeta.activityName);
-    if (activityMeta.activityId) lines.push('# Activity ID: ' + activityMeta.activityId);
-    if (activityMeta.startTimeLocal || activityMeta.startTimeGMT) lines.push('# Date: ' + (activityMeta.startTimeLocal || activityMeta.startTimeGMT));
-    if (activityMeta.activityType?.typeKey) lines.push('# Sport: ' + activityMeta.activityType.typeKey);
-  }
+  const actName = activityMeta ? (activityMeta.activityName || activityMeta.summaryDTO?.activityName || activityMeta.metadataDTO?.activityName) : null;
+  const actId = activityMeta ? (activityMeta.activityId || activityMeta.summaryDTO?.activityId) : null;
+  const actDate = (activityMeta ? (activityMeta.startTimeLocal || activityMeta.summaryDTO?.startTimeLocal || activityMeta.startTimeGMT || activityMeta.summaryDTO?.startTimeGMT || activityMeta.metadataDTO?.startTimeLocal || activityMeta.metadataDTO?.startTimeGMT) : null) || session?.start_time || records?.[0]?.timestamp;
+  const sport = activityMeta ? (activityMeta.activityType?.typeKey || activityMeta.summaryDTO?.activityType?.typeKey) : null;
+
+  if (actName) lines.push('# Activity: ' + actName);
+  if (actId) lines.push('# Activity ID: ' + actId);
+  if (actDate) lines.push('# Date: ' + actDate);
+  if (sport) lines.push('# Sport: ' + sport);
 
   if (session) {
     if (session.total_distance != null) lines.push('# Total Distance (m): ' + session.total_distance);

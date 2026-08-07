@@ -45,12 +45,15 @@ function toCSV(records, session, activityMeta) {
   lines.push(`# Generated: ${new Date().toISOString()}`);
   lines.push('#');
 
-  if (activityMeta) {
-    lines.push(`# Activity: ${activityMeta.activityName || 'Unknown'}`);
-    lines.push(`# Activity ID: ${activityMeta.activityId || ''}`);
-    lines.push(`# Date: ${activityMeta.startTimeLocal || ''}`);
-    lines.push(`# Sport: ${activityMeta.activityType?.typeKey || 'running'}`);
-  }
+  const actName = (activityMeta && (activityMeta.activityName || activityMeta.summaryDTO?.activityName || activityMeta.metadataDTO?.activityName)) || 'Unknown';
+  const actId = (activityMeta && (activityMeta.activityId || activityMeta.summaryDTO?.activityId)) || '';
+  const actDate = (activityMeta && (activityMeta.startTimeLocal || activityMeta.summaryDTO?.startTimeLocal || activityMeta.startTimeGMT || activityMeta.summaryDTO?.startTimeGMT || activityMeta.metadataDTO?.startTimeLocal || activityMeta.metadataDTO?.startTimeGMT)) || session?.start_time || records?.[0]?.timestamp || '';
+  const sport = (activityMeta && (activityMeta.activityType?.typeKey || activityMeta.summaryDTO?.activityType?.typeKey)) || 'running';
+
+  lines.push(`# Activity: ${actName}`);
+  lines.push(`# Activity ID: ${actId}`);
+  lines.push(`# Date: ${actDate}`);
+  lines.push(`# Sport: ${sport}`);
 
   if (session) {
     if (session.total_distance != null) lines.push(`# Total Distance (m): ${session.total_distance}`);
@@ -74,7 +77,7 @@ function toCSV(records, session, activityMeta) {
     if (activityMeta.distance != null) lines.push(`# Total Distance (m): ${Math.round(activityMeta.distance * 100) / 100}`);
     if (activityMeta.duration != null) lines.push(`# Total Duration (s): ${Math.round(activityMeta.duration)}`);
     if (activityMeta.averageHR != null) lines.push(`# Avg Heart Rate (bpm): ${activityMeta.averageHR}`);
-    if (activityMeta.maxHR != null) lines.push(`# Max Heart Rate (bpm): ${activityMeta.maxHR}`);
+    if (activityMeta.maxHR != null) lines.push(`# Max HR Rate (bpm): ${activityMeta.maxHR}`);
     if (activityMeta.averageSpeed != null) lines.push(`# Avg Speed (m/s): ${Math.round(activityMeta.averageSpeed * 1000) / 1000}`);
     if (activityMeta.calories != null) lines.push(`# Calories: ${activityMeta.calories}`);
     if (activityMeta.elevationGain != null) lines.push(`# Elevation Gain (m): ${activityMeta.elevationGain}`);
@@ -121,18 +124,21 @@ function toCSV(records, session, activityMeta) {
 /**
  * Get MMDD format for a date string.
  */
-function getMMDD(dateStr) {
-  try {
-    const d = new Date(dateStr);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${mm}${dd}`;
-  } catch {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${mm}${dd}`;
+function getMMDD(dateInput) {
+  if (dateInput) {
+    try {
+      const d = new Date(typeof dateInput === 'string' ? dateInput.replace(' ', 'T') : dateInput);
+      if (!isNaN(d.getTime())) {
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${mm}${dd}`;
+      }
+    } catch { }
   }
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}${dd}`;
 }
 
 /**
@@ -141,6 +147,7 @@ function getMMDD(dateStr) {
 function determineWorkoutType(activityName) {
   if (!activityName) return 'unknown';
   const name = activityName.toLowerCase();
+  if (name.includes('vo2')) return 'vo2max';
   if (name.includes('hill')) return 'hill';
   if (name.includes('threshold')) return 'threshold';
   if (name.includes('medium')) return 'medium';
@@ -170,8 +177,10 @@ async function parseAndExportRun(activity, fitDataBase64) {
   console.log('[GFE] Step 5: Creating download...');
 
   // Step 5: Create download
-  const mmdd = getMMDD(activity.startTimeLocal || activity.startTimeGMT);
-  const workoutType = determineWorkoutType(activity.activityName);
+  const dateStr = (activity && (activity.startTimeLocal || activity.summaryDTO?.startTimeLocal || activity.startTimeGMT || activity.summaryDTO?.startTimeGMT || activity.metadataDTO?.startTimeLocal || activity.metadataDTO?.startTimeGMT)) || session?.start_time || records?.[0]?.timestamp;
+  const mmdd = getMMDD(dateStr);
+  const actName = (activity && (activity.activityName || activity.summaryDTO?.activityName || activity.metadataDTO?.activityName)) || '';
+  const workoutType = determineWorkoutType(actName);
   const filename = `${mmdd} ${workoutType}.csv`;
 
   // Use base64 data URI for download to avoid Blob URL cross-origin issues in Chrome MV3

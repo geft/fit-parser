@@ -134,15 +134,42 @@
         }
 
         // ---- Create MMDD [type].csv filename ----
+        let dateStr = activity.startTimeLocal || activity.summaryDTO?.startTimeLocal || 
+                      activity.startTimeGMT || activity.summaryDTO?.startTimeGMT || 
+                      activity.metadataDTO?.startTimeLocal || activity.metadataDTO?.startTimeGMT;
+
+        // Fallback: extract date from generated CSV header if present (# Date: YYYY-MM-DD...)
+        if (!dateStr && csvText) {
+          const match = csvText.match(/^# Date:\s*(.+)$/m);
+          if (match && match[1]) {
+            dateStr = match[1].trim();
+          }
+        }
+
         let mmdd = '';
-        try {
-          const d = new Date(activity.startTimeLocal || activity.startTimeGMT || Date.now());
+        if (dateStr) {
+          try {
+            const d = new Date(typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr);
+            if (!isNaN(d.getTime())) {
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const dd = String(d.getDate()).padStart(2, '0');
+              mmdd = `${mm}${dd}`;
+            }
+          } catch (e) {
+            console.warn('[GFE] Failed to parse activity date string:', dateStr, e);
+          }
+        }
+
+        // Final fallback if no valid date found
+        if (!mmdd) {
+          const d = new Date();
           const mm = String(d.getMonth() + 1).padStart(2, '0');
           const dd = String(d.getDate()).padStart(2, '0');
           mmdd = `${mm}${dd}`;
-        } catch { mmdd = '0000'; }
+        }
 
-        const nameLower = (activity.activityName || '').toLowerCase();
+        const rawName = activity.activityName || activity.summaryDTO?.activityName || activity.metadataDTO?.activityName || '';
+        const nameLower = rawName.toLowerCase();
         let workoutType = 'unknown';
         if (nameLower.includes('vo2')) workoutType = 'vo2max';
         else if (nameLower.includes('hill')) workoutType = 'hill';

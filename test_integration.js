@@ -119,4 +119,44 @@ assert.strictEqual(getWorkoutType('Hill repeats'), 'hill', 'Hill naming failed')
 assert.strictEqual(getWorkoutType('Morning Run'), 'unknown', 'Unknown default naming failed');
 console.log('✅ VO2 Max and workout type naming resolution');
 
+// 7. Test Activity Date Resolution & MMDD Formatting
+function resolveActivityDate(activity, csvText) {
+  let dateStr = activity ? (
+    activity.startTimeLocal || activity.summaryDTO?.startTimeLocal || 
+    activity.startTimeGMT || activity.summaryDTO?.startTimeGMT || 
+    activity.metadataDTO?.startTimeLocal || activity.metadataDTO?.startTimeGMT
+  ) : null;
+
+  if (!dateStr && csvText) {
+    const match = csvText.match(/^# Date:\s*(.+)$/m);
+    if (match && match[1]) {
+      dateStr = match[1].trim();
+    }
+  }
+
+  if (dateStr) {
+    try {
+      const d = new Date(typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr);
+      if (!isNaN(d.getTime())) {
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${mm}${dd}`;
+      }
+    } catch { }
+  }
+  return null;
+}
+
+// Test top-level startTimeLocal
+assert.strictEqual(resolveActivityDate({ startTimeLocal: '2026-03-15 07:12:34' }), '0315', 'Top-level date failed');
+
+// Test summaryDTO.startTimeLocal (single activity detail response structure)
+assert.strictEqual(resolveActivityDate({ summaryDTO: { startTimeLocal: '2026-04-20 08:30:00.0' } }), '0420', 'summaryDTO date resolution failed');
+
+// Test fallback to CSV header when activity metadata is missing
+const mockCsv = '# Garmin Run Export\n# Date: 2026-11-05T06:00:00.000\nheader1,header2\n';
+assert.strictEqual(resolveActivityDate(null, mockCsv), '1105', 'CSV header date fallback failed');
+
+console.log('✅ Activity actual date resolution & summaryDTO fallback validated');
+
 console.log('\nAll integration tests passed. Maximum practical coverage achieved!');

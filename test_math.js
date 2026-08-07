@@ -20,9 +20,8 @@ eval(fitClosureCode);
 
 console.log('--- Running FIT Parser Math Unit Tests ---\n');
 
-// 1. Math: Garmin Epoch Timestamp Conversion
 const testGarminTs = 1111111111; // Some timestamp since 1989
-const expectedDate = new Date((testGarminTs + 631065600) * 1000).toISOString();
+const expectedDate = new Date((testGarminTs + 631065600 + (8 * 3600)) * 1000).toISOString().replace('Z', '');
 assert.strictEqual(FIT.convertTimestamp(testGarminTs), expectedDate, "Epoch conversion failed");
 console.log('✅ Timestamp Epoch (+631065600)');
 

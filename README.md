@@ -1,10 +1,11 @@
 # Garmin FIT → CSV Exporter
 
-Chrome extension that exports your latest Garmin Connect run as a parsed CSV — optimized for AI analysis.
+Chrome extension that exports your Garmin Connect activity (current activity page or latest run) as a parsed CSV — optimized for AI analysis.
 
 ## Features
 
-- 🏃 One-click export of latest running activity from Garmin Connect
+- 🏃 **Smart Activity Export**: Exports the current activity when viewing an activity page (e.g. `connect.garmin.com/app/activity/:id`), or your latest run when on home
+- 🏷️ **Smart Filename Categorization**: Automatically categorizes workout filenames (`MMDD vo2max.csv`, `MMDD hill.csv`, `MMDD threshold.csv`, `MMDD long.csv`, etc.) based on activity title
 - 📊 Parses binary FIT files directly in the browser (no server needed)  
 - 📥 Saves CSV to Downloads folder with session metadata + time-series records
 - 🧠 AI-friendly format with `#`-prefixed header comments

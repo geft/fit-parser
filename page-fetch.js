@@ -837,7 +837,24 @@ function getCsrfToken() {
       }
     }
 
-    
+    if (action === 'fetchActivityDetails') {
+      try {
+        const url = `/gc-api/activity-service/activity/${event.data.activityId}`;
+        const resp = await garminFetch(url);
+        const activity = await resp.json();
+
+        window.postMessage({
+          source: 'garmin-fit-exporter-response',
+          requestId, success: true, data: activity
+        }, '*');
+      } catch (err) {
+        window.postMessage({
+          source: 'garmin-fit-exporter-response',
+          requestId, success: false, error: err.message
+        }, '*');
+      }
+    }
+
     if (action === 'downloadFit') {
       let attempts = 0;
       const MAX_ATTEMPTS = 3;

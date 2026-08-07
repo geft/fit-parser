@@ -89,17 +89,32 @@
       btn.querySelector('.gfe-label').textContent = 'Exporting...';
 
       try {
-        showToast('Fetching latest run...', 'info');
-        const activities = await pageRequest('fetchActivities');
+        let activity = null;
+        const urlMatch = window.location.href.match(/\/activity\/(\d+)/);
 
-        if (!activities || !Array.isArray(activities) || activities.length === 0) {
-          throw new Error('No running activities found in your Garmin Connect account.');
+        if (urlMatch && urlMatch[1]) {
+          const currentActivityId = urlMatch[1];
+          showToast(`Fetching activity #${currentActivityId}...`, 'info');
+          try {
+            activity = await pageRequest('fetchActivityDetails', { activityId: currentActivityId });
+          } catch (err) {
+            console.warn('[GFE] Failed to fetch current activity details, falling back to search:', err.message);
+          }
         }
 
-        const activity = activities.find(a => {
-          const type = (a.activityType?.typeKey || '').toLowerCase();
-          return RUNNING_TYPES.includes(type);
-        }) || activities[0];
+        if (!activity) {
+          showToast('Fetching latest run...', 'info');
+          const activities = await pageRequest('fetchActivities');
+
+          if (!activities || !Array.isArray(activities) || activities.length === 0) {
+            throw new Error('No running activities found in your Garmin Connect account.');
+          }
+
+          activity = activities.find(a => {
+            const type = (a.activityType?.typeKey || '').toLowerCase();
+            return RUNNING_TYPES.includes(type);
+          }) || activities[0];
+        }
 
         showToast('Processing FIT file...', 'info');
         // pageRequest now returns the parsed CSV string directly
@@ -129,7 +144,8 @@
 
         const nameLower = (activity.activityName || '').toLowerCase();
         let workoutType = 'unknown';
-        if (nameLower.includes('hill')) workoutType = 'hill';
+        if (nameLower.includes('vo2')) workoutType = 'vo2max';
+        else if (nameLower.includes('hill')) workoutType = 'hill';
         else if (nameLower.includes('threshold')) workoutType = 'threshold';
         else if (nameLower.includes('medium')) workoutType = 'medium';
         else if (nameLower.includes('long')) workoutType = 'long';

@@ -85,4 +85,38 @@ const expectedDate2 = new Date((12346 + 631065600 + (8 * 3600)) * 1000).toISOStr
 assert.strictEqual(rec2.timestamp, expectedDate2, "Valid timestamp alongside invalid fields");
 console.log('✅ Invalid values (0xFF, 0xFFFF, 0xFFFFFFFF) bypassed correctly inside data message loop');
 
+// 5. Test Activity URL parsing regex
+const testUrls = [
+  'https://connect.garmin.com/app/activity/23714506580',
+  'https://connect.garmin.com/modern/activity/23714506580',
+  'https://connect.garmin.com/activity/23714506580',
+  'https://connect.garmin.com/modern/home'
+];
+
+const matches = testUrls.map(u => {
+  const m = u.match(/\/activity\/(\d+)/);
+  return m ? m[1] : null;
+});
+
+assert.deepStrictEqual(matches, ['23714506580', '23714506580', '23714506580', null], 'URL regex matching failed');
+console.log('✅ Activity URL ID extraction (/activity/:id regex)');
+
+// 6. Test Workout Type Naming (including VO2 Max)
+function getWorkoutType(name) {
+  const nameLower = (name || '').toLowerCase();
+  let workoutType = 'unknown';
+  if (nameLower.includes('vo2')) workoutType = 'vo2max';
+  else if (nameLower.includes('hill')) workoutType = 'hill';
+  else if (nameLower.includes('threshold')) workoutType = 'threshold';
+  else if (nameLower.includes('medium')) workoutType = 'medium';
+  else if (nameLower.includes('long')) workoutType = 'long';
+  return workoutType;
+}
+
+assert.strictEqual(getWorkoutType('VO2 Max Test'), 'vo2max', 'VO2 Max upper case naming failed');
+assert.strictEqual(getWorkoutType('Morning Run vo2'), 'vo2max', 'vo2 lower case naming failed');
+assert.strictEqual(getWorkoutType('Hill repeats'), 'hill', 'Hill naming failed');
+assert.strictEqual(getWorkoutType('Morning Run'), 'unknown', 'Unknown default naming failed');
+console.log('✅ VO2 Max and workout type naming resolution');
+
 console.log('\nAll integration tests passed. Maximum practical coverage achieved!');

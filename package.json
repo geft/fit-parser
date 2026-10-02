@@ -1,0 +1,17 @@
+{
+  "name": "garmin-fit-csv-exporter",
+  "version": "1.2.0",
+  "private": true,
+  "scripts": {
+    "build": "node bundle.js",
+    "test": "node --test tests/*.test.mjs",
+    "check:parity": "node scripts/check-parity.mjs"
+  },
+  "dependencies": {
+    "@garmin/fitsdk": "21.217.0",
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
